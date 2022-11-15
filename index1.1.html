@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clustering Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link rel="stylesheet" type="text/css" href="ClusteringCalculator1.1.css" media="screen">
+</head>
+<body></body>
+    <div id="app">
+        <div class="box">
+            <h1>Choose the Sequencer:</h1>
+            <button
+            v-for="sequencer in sequencers"
+            :key="sequencer"
+            :class="['button', {active: currentSequencer === sequencer}]"
+            @click= "currentSequencer = sequencer">
+            <strong>{{ sequencer }}</strong>
+            </button>
+        </div>
+        <div class="box" v-if="currentSequencer != null">
+            <h2><strong>{{ currentSequencer }} Clustering:</strong></h2>   
+            <keep-alive>
+                <component :is="currentSequencerComponent"></component>
+            </keep-alive>         
+        </div>        
+    </div>    
+</body>
+<script>
+    Vue.component("app-iseq", {
+        data() {
+        return {
+            multiplexConcentration: 2.5,
+            laneMolarity: 50,
+            laneVolume: 25,
+            phiXPercentage: 1,
+            phiXStockConcentration: 0.1
+        }
+    },
+    methods: {
+        printInstruction() {
+            let divContent = document.getElementById('instruction').innerHTML;
+            let toPrint = window.open('', '', 'height=500, width=500');
+            toPrint.document.write(divContent);
+            toPrint.document.close();
+            toPrint.print();
+        }
+    },
+    computed: {
+        calculatePhiXMolarity() {            
+            return (this.laneMolarity / 100 * this.phiXPercentage).toFixed(2);
+        },
+        calculateLibraryMolarity() {            
+            return (this.laneMolarity - this.calculatePhiXMolarity).toFixed(2);
+        },
+        calculateLibraryVolume() {    
+            return (this.laneVolume / ((this.multiplexConcentration / this.calculateLibraryMolarity) * 1000)).toFixed(2);                      
+        },
+        calculatePhiXVolume() {
+            return (this.laneVolume / (this.phiXStockConcentration / (this.phiXPercentage * 5 / 1000) / (this.laneMolarity / 100))).toFixed(2);           
+        },
+        calculateBufferVolume() {
+            return (this.laneVolume - this.calculatePhiXVolume - this.calculateLibraryVolume).toFixed(2);
+        }
+    },
+        template: `<div class="box">    
+    <div class="formBox">
+        <label for="laneMolarity">Concentration of the multiplex:</label>
+        <input type="number" v-model="multiplexConcentration">nM<br>
+        <hr>
+        <label for="phiXPercentage">Loading Volume:</label>
+            <input type="number" v-model="laneVolume">µl<br>
+            <hr>
+        <label for="laneMolarity">Enter lane molarity:</label>
+            <input type="number" v-model="laneMolarity">pM<br>
+            <hr>
+        <label for="phiXPercentage">Enter PhiX percentage of the lane:</label>
+            <input type="number" v-model="phiXPercentage">%<br>
+            <hr>
+        <label for="phiXPercentage">Enter PhiX Stock molarity (<strong>non-denatured</strong>):</label>
+        <label for="phiXPercentage"><input type="radio" value="1" v-model="phiXStockConcentration">1nM</label>
+        <label for="phiXPercentage"><input type="radio" value="0.1" v-model="phiXStockConcentration">0.1nM</label>
+        <hr> 
+    </div>
+    <div id="instruction">
+    <h3>Instruction:</h3>
+    <pre class="instruction">
+1. Check, if instrument is idle. If run just finished - remove used cartridge (follow instructions on the screen).
+2. Prepare Cluster Sheet, Sample and all reagents.
+3. Take out the flowcell from the fridge to equilibrate it to room temperature (5-10min).
+4. Install Flowcell in the cartridge.
+5. Mix all reagents in the Eppendorf tube: 
+    - <b>{{ calculatePhiXVolume }}µl</b> of <b>{{ phiXStockConcentration }}nM</b> PhiX;
+    - <b>{{ calculateLibraryVolume }}µl</b> of <b>{{ multiplexConcentration }}nM</b> Library;
+    - <b>{{ calculateBufferVolume }}µl</b> of Dilution Buffer;
+6. Vortex and spin down.
+7. Transfer <b>20µl</b> into iSeq cartridge in well marked 'sample'.
+8. Load reagents into instrument, following instructions on the iSeq's screen.</pre>
+</div>
+<button class="button" @click="printInstruction">Print Instruction</button>
+</div>`
+      });
+
+    Vue.component("app-miseq", {
+        data() {
+            return {
+                multiplexConcentration: 2.5,
+                laneMolarity: 18,
+                laneVolume: 0.6,
+                phiXPercentage: 5,
+                phiXStockConcentration: 200,
+                custom: false,
+								templateWash: false
+            }
+        },
+        methods: {
+            printInstruction() {
+                let divContent = document.getElementById('instruction').innerHTML;
+                let toPrint = window.open('', '', 'height=500, width=500');
+                toPrint.document.write(divContent);
+                toPrint.document.close();
+                toPrint.print();
+            }
+        },
+        computed: {
+            calculatePhiXMolarity() {            
+                return (this.laneMolarity / 100 * this.phiXPercentage).toFixed(2);
+            },
+            calculateLibraryMolarity() {            
+                return (this.laneMolarity - this.calculatePhiXMolarity).toFixed(2);
+            },
+            calculateLibraryVolume() {
+                return ((1000 / 50 * this.calculateLibraryMolarity) * this.laneVolume).toFixed(2);
+            },
+            calculatePhiXVolume() {
+                return ((1000 / this.phiXStockConcentration * this.calculatePhiXMolarity) * this.laneVolume).toFixed(2);
+            },
+            calculateBufferVolume() {
+                return ((1000 * this.laneVolume) - this.calculatePhiXVolume - this.calculateLibraryVolume).toFixed(2);                
+            }      
+        },
+        template: `<div class="box">
+    <div class="formBox">
+        <label for="laneMolarity">Enter lane molarity:</label>
+        <input type="number" v-model="laneMolarity">pM<br>
+        <hr>
+    <label for="phiXPercentage">Enter PhiX percentage of the lane:</label>
+        <input type="number" v-model="phiXPercentage">%<br>
+        <hr>
+        <label for="phiXPercentage">Enter PhiX Stock molarity:</label>
+        <label for="phiXPercentage"><input type="radio" value="200" v-model="phiXStockConcentration">200pM</label>
+        <label for="phiXPercentage"><input type="radio" value="20" v-model="phiXStockConcentration">20pM</label>
+        <hr>
+        <div class="generalparameters">
+                Total Lane Molarity: {{ laneMolarity }}pM<br>
+                Library Molarity: {{ calculateLibraryMolarity }}pM<br>
+                PhiX Molarity: {{ calculatePhiXMolarity }}pM<br>
+        </div>
+    </div>  
+    <div id="instruction">  
+        <h3>Instruction:</h3>              
+    <pre class="instruction">
+1. Check, if instrument is idle. If run just finished - remove used cartridge and start washing.
+2. After washing power-cycle the instrument (washing takes around 20min).
+3. Prepare Cluster Sheet, Sample Sheet (on instrument), Sample and all reagents.
+4. Denature the sample:
+    - Transfer <b>19µl</b> of the <b>2,5nM</b> library into PCR tube;
+    - Add <b>1µl</b> of <b>2N</b> NaOH;
+    - Incubate for 5 minutes;
+    - Transfer denatured sample into Eppendorf tube containing <b>980µl</b> of Hyb Buffer;
+    - Denatured sample can be stored in -20C for 4-6 weeks;
+5. Prepare final dilution:
+    - Transfer <b>{{ calculateBufferVolume }}µl</b> of Hyb buffer to the Eppendorf tube;
+    - Add <b>{{ calculateLibraryVolume }}µl</b> of denatured sample;
+    - Add <b>{{ calculatePhiXVolume }}µl</b> of <b>{{ phiXStockConcentration }}pM</b> PhiX;
+6. Load the final mix in well labeled sample.
+7. Follow the screen instructions and load all consumables in instrument.
+8. After finished run wash and powercycle the instrument.
+<div v-if="custom===true">		
+<b>Custom Primers: </b>
+		
+You can use custom sequencing primers for a run on the MiSeq. To do so, specify the use
+of custom primers in the sample sheet, and then load prepared custom primers into the
+empty reservoirs on the MiSeq reagent cartridge.
+
+1. Prepare 600 µl of custom primer at 0.5 µM. 
+2. Use HT1 (Hybridization Buffer) to dilute the custom primer.
+3. Pipette 600 µl of custom primer in the appropriate position on the reagent cartridge:
+    - Position 18 for Read 1 Custom Primer.
+    - Position 19 for Index Read Custom Primer.
+    - Position 20 for Read 2 Custom Primer.
+    </div>
+<div v-if="templateWash===true">
+<b>Template Line Wash: </b>
+
+1. Prepare 0.5 % Tween:
+    - add 25 ml 10% Tween 20 to 475 ml laboratory-grade water. 
+2. Prepare fresh NaOCl wash solution:
+    - Add 36 µl of 5% NaOCl to 864 µl laboratory-grade water (1:25 dilution).
+    - Add 50 µl of the 1:25 NaOCl dilution to 950 µl of laboratory-grade water in a MiSeq tube (part # MS102-9999). 
+			<strong>VOLUME and CONCENTRATION of NaOCl are crucial!!!</strong>
+3. Add 6 ml of wash solution (from step 1) to each reservoir of the wash tray (except position 17).
+4. Add 350 ml wash solution to the 500 ml wash bottle.
+5. Insert the MiSeq tube containing 0.01% NaOCl wash solution into position 17 of the wash tray until the neck of the tube is flush with the tray.
+6. When the previous run is complete, select Start Wash. The software automatically raises the sippers in the reagent chiller.
+7. Select Perform optional template line wash on the Post-Run Wash screen.
+8. Open the reagent compartment door and reagent chiller door, and slide the used reagent cartridge from the chiller.
+9. Slide the wash tray into the reagent chiller until it stops, and then close the reagent chiller door.
+10. Raise the sipper handle in front of the PR2 bottle and waste bottle until it locks into place.
+11. Remove the PR2 bottle and replace it with the wash bottle
+12. Remove the waste bottle and discard the contents appropriately. Return the waste bottle to the reagent compartment.
+13. Slowly lower the sipper handle, making sure that the sippers lower into the wash bottle and waste bottle.
+14. Close the reagent compartment door.
+15. Select Next. When the wash is complete, leave the used flow cell, wash tray, and wash bottle containing the remaining wash solution on the instrument. 
+NOTE: The sippers remain in the down position. Leave the unused wash solution in the wash tray and wash bottle to prevent the sippers from drying out and air from entering the system.
+    </div>
+</pre>
+</div>
+    <button class="button" @click="printInstruction">Print Instruction</button>
+    <button class="button" @click="custom=!custom">Custom Primers</button>
+		<button class="button" @click="templateWash=!templateWash">Template Line Wash</button>
+</div>`
+      });
+
+    Vue.component("app-nextseq", {
+        data() {
+            return {
+                multiplexConcentration: 2.5,
+                laneMolarity: 2.5,
+                laneVolume: 1.3,
+                phiXPercentage: 5,
+                phiXStockConcentration: 200,
+                custom: false,
+								templateWash: false
+            }
+        },
+        methods: {
+            printInstruction() {
+                let divContent = document.getElementById('instruction').innerHTML;
+                let toPrint = window.open('', '', 'height=500, width=500');
+                toPrint.document.write(divContent);
+                toPrint.document.close();
+                toPrint.print();
+            }
+        },
+        computed: {
+            calculatePhiXMolarity() {            
+            return (this.laneMolarity / 100 * this.phiXPercentage).toFixed(2);
+        },
+            calculateLibraryMolarity() {            
+                return (this.laneMolarity - this.calculatePhiXMolarity).toFixed(2);
+            },
+            calculateLibraryVolume() {
+                return ((1000 / 50 * this.calculateLibraryMolarity) * this.laneVolume).toFixed(2);
+            },
+            calculatePhiXVolume() {
+                return ((1000 / this.phiXStockConcentration * this.calculatePhiXMolarity) * this.laneVolume).toFixed(2);
+            },
+            calculateBufferVolume() {
+                return ((1000 * this.laneVolume) - this.calculatePhiXVolume - this.calculateLibraryVolume).toFixed(2);            
+            },
+            divide() {
+                return (this.calculateBufferVolume / 2).toFixed(2);
+            }
+        },
+        template: `<div class="box">
+    <div class="formBox">
+        <label for="laneMolarity">Enter lane molarity:</label>
+        <input type="number" v-model="laneMolarity">pM<br>
+        <hr>
+    <label for="phiXPercentage">Enter PhiX percentage of the lane:</label>
+        <input type="number" v-model="phiXPercentage">%<br>
+        <hr>
+        <label for="phiXPercentage">Enter PhiX Stock molarity:</label>
+        <label for="phiXPercentage"><input type="radio" value="200" v-model="phiXStockConcentration">200pM</label>
+        <label for="phiXPercentage"><input type="radio" value="20" v-model="phiXStockConcentration">20pM</label>
+        <hr>
+        <div class="generalparameters">
+                Total Lane Molarity: {{ laneMolarity }}pM<br>
+                Library Molarity: {{ calculateLibraryMolarity }}pM<br>
+                PhiX Molarity: {{ calculatePhiXMolarity }}pM<br>
+        </div>
+    </div>
+    <div id="instruction">
+        <h3>Instruction:</h3> 
+    <pre class="instruction">
+1. Check, if instrument is idle.
+2. Prepare Cluster Sheet, Sample and all reagents.
+3. Take out the flowcell from the fridge to equilibrate it to room temperature (5-10min).
+4. Denature the sample:
+    - Transfer <b>19µl</b> of the <b>2,5nM</b> library into PCR tube;
+    - Add <b>1µl</b> of <b>2N</b> NaOH;
+    - Incubate for 5 minutes;
+    - After incubation neutralize sample by adding <b>20µl</b> of 1M Tris;
+    - Transfer denatured sample into Eppendorf tube containing <b>960µl</b> of Hyb Buffer;
+    - Denatured sample can be stored in -20C for 4-6 weeks;
+5.Prepare final dilution:
+    - Transfer <b>{{ calculateBufferVolume }}µl</b> of Hyb buffer (<b>2x{{ divide }}µl</b>) to the Eppendorf tube;
+    - Add <b>{{ calculateLibraryVolume }}µl</b> of denatured sample;
+    - Add <b>{{ calculatePhiXVolume }}µl</b> of <b>{{ phiXStockConcentration }}pM</b> PhiX;
+6. Load the final mix in well labeled sample.
+7. Follow the screen instructions and load all consumables in instrument.
+
+<div v-if="custom===true">
+* Custom Primers:
+
+visit Illumina NextSeq Custom Primer Guide: <a href="https://support.illumina.com/content/dam/illumina-support/documents/documentation/system_documentation/nextseq/nextseq-500-550-custom-primers-guide-15057456-03.pdf" target="_blank">Click here for more info!</a>
+    </div>
+<div v-if="templateWash===true">
+<b>Template Line Wash: </b>
+
+1. Prepare 0.5 % Tween:
+    - add 62µl 100% Tween 20 to 125ml laboratory-grade water. 
+2. Prepare fresh NaOCl wash solution:
+    - Add 24µl of 5% NaOCl to 976 µl laboratory-grade water.
+			<strong>VOLUME and CONCENTRATION of NaOCl are crucial!!!</strong>
+3. Add 125 ml wash solution to the center reservoir of the buffer wash cartridge.
+4. Add 1 ml 0.12% NaOCl to the reagent wash cartridge. The correct reservoir is equivalent to position #28 on the prefilled cartridge.
+5. Select Perform Wash, and then select Manual Post-Run Wash.
+6. If a used flow cell is not present, load a used flow cell. Select Load and then select Next.
+7. Remove the spent reagents container and discard the contents in accordance with applicable standards.
+8. Slide the empty spent reagents container into the buffer compartment until it stops.
+9. Remove the used buffer cartridge from the previous run, if present.
+9. Load the buffer wash cartridge containing wash solution.
+10. Remove the used reagent cartridge from the previous run, if present.
+11. Load the reagent wash cartridge.
+12. Select Next. The prewash check begins automatically.
+13. Select Start. When the wash is complete, select Home.
+    </div>
+    </pre>
+    </div>    
+    <button class="button" @click="printInstruction">Print Instruction</button>
+    <button class="button" @click="custom=!custom">Custom Primers</button>
+		<button class="button" @click="templateWash=!templateWash">Bleach Wash</button>
+</div>`
+      });
+
+      Vue.component("app-nextseq2000", {
+        data() {
+        return {
+            multiplexConcentration: 2.5,
+            laneMolarity: 1000,
+            laneVolume: 25,
+            phiXPercentage: 1,
+            phiXStockConcentration: 1
+        }
+    },
+    methods: {
+        printInstruction() {
+            let divContent = document.getElementById('instruction').innerHTML;
+            let toPrint = window.open('', '', 'height=500, width=500');
+            toPrint.document.write(divContent);
+            toPrint.document.close();
+            toPrint.print();
+        }
+    },
+    computed: {
+        calculatePhiXMolarity() {            
+            return (this.laneMolarity / 100 * this.phiXPercentage).toFixed(2);
+        },
+        calculateLibraryMolarity() {            
+            return (this.laneMolarity - this.calculatePhiXMolarity).toFixed(2);
+        },
+        calculateLibraryVolume() {    
+            return (this.laneVolume / ((this.multiplexConcentration / this.calculateLibraryMolarity) * 1000)).toFixed(2);                      
+        },
+        calculatePhiXVolume() {
+            return (this.laneVolume / (this.phiXStockConcentration / (this.phiXPercentage * 5 / 1000) / (this.laneMolarity / 100))).toFixed(2);           
+        },
+        calculateBufferVolume() {
+            return (this.laneVolume - this.calculatePhiXVolume - this.calculateLibraryVolume).toFixed(2);
+        }
+    },
+        template: `<div class="box">    
+    <div class="formBox">
+        <label for="laneMolarity">Concentration of the multiplex:</label>
+        <input type="number" v-model="multiplexConcentration">nM<br>
+        <hr>
+        <label for="phiXPercentage">Loading Volume:</label>
+            <input type="number" v-model="laneVolume">µl<br>
+            <hr>
+        <label for="laneMolarity">Enter lane molarity:</label>
+            <input type="number" v-model="laneMolarity">pM<br>
+            <hr>
+        <label for="phiXPercentage">Enter PhiX percentage of the lane:</label>
+            <input type="number" v-model="phiXPercentage">%<br>
+            <hr>
+        <label for="phiXPercentage">Enter PhiX Stock molarity (<strong>non-denatured</strong>):</label>
+        <label for="phiXPercentage"><input type="radio" value="1" v-model="phiXStockConcentration">1nM</label>
+        <label for="phiXPercentage"><input type="radio" value="0.1" v-model="phiXStockConcentration">0.1nM</label>
+        <hr> 
+        <div class="generalparameters" id="general">
+            Total Lane Molarity: {{ laneMolarity }}pM<br>
+            Library Molarity: {{ calculateLibraryMolarity }}pM<br>
+            PhiX Molarity: {{ calculatePhiXMolarity }}pM
+        </div>
+    </div>
+    <div id="instruction">
+    <h3>Instruction:</h3>
+    <pre class="instruction" id="instruction">
+1. Check, if instrument is idle. If run just finished - remove used cartridge (follow instructions on the screen).
+2. Prepare Cluster Sheet, Sample and all reagents.
+3. Take out the flowcell from the fridge to equilibrate it to room temperature (5-10min).
+4. Install Flowcell in the cartridge.
+5. Mix all reagents in the Eppendorf tube: 
+    - <b>{{ calculatePhiXVolume }}µl</b> of <b>{{ phiXStockConcentration }}nM</b> PhiX;
+    - <b>{{ calculateLibraryVolume }}µl</b> of <b>{{ multiplexConcentration }}nM</b> Library;
+    - <b>{{ calculateBufferVolume }}µl</b> of Dilution Buffer;
+6. Vortex and spin down.
+7. Transfer <b>20µl</b> into NextSeq 2000 cartridge in well marked 'sample'.
+8. Load reagents into instrument, following instructions on the screen.</pre>
+</div>
+<button class="button" @click="printInstruction">Print Instruction</button>
+</div>`
+      });
+
+    Vue.component("app-hiseq", {
+        data() {
+            return {
+                hobbyInputs: [],
+                multiplexConcentration: 2.5,
+                laneMolarity: 18,
+                laneVolume: 0.12,
+                phiXPercentage: 1,
+                phiXStockConcentration: 20,
+                custom: false,
+                MWS: false
+            }
+        },
+        methods: {
+            onAddHobby () {
+                const newHobby = {
+                    id: Math.random() * Math.random() * 1000,
+                    laneMolarity: 18,
+                    phiXPercentage: 1,
+                    mpNumber: ''
+                }
+                this.hobbyInputs.push(newHobby)
+            },
+            onDeleteHobby (id) {
+                this.hobbyInputs = this.hobbyInputs.filter(hobby => hobby.id !== id)
+            },
+            printInstruction() {
+                let divContent = document.getElementById('instruction').innerHTML;
+                let toPrint = window.open('', '', 'height=500, width=500');
+                toPrint.document.write(divContent);
+                toPrint.document.close();
+                toPrint.print();
+            },
+            calculatePhiXMolarity(item) {            
+            return (item.laneMolarity / 100 * item.phiXPercentage).toFixed(2);
+            },
+            calculateLibraryMolarity(item) {            
+                return (item.laneMolarity - this.calculatePhiXMolarity(item)).toFixed(2);
+            },
+            calculateLibraryVolume(item) {
+                return ((1000 / 50 * this.calculateLibraryMolarity(item)) * this.laneVolume).toFixed(2);
+            },
+            calculatePhiXVolume(item) {
+                return ((1000 / this.phiXStockConcentration * this.calculatePhiXMolarity(item))* this.laneVolume).toFixed(2);
+            },
+            calculateBufferVolume(item) {
+                return ((1000 * this.laneVolume) - this.calculatePhiXVolume(item) - this.calculateLibraryVolume(item)).toFixed(2);            
+            }
+        },
+
+        template: `<div class="box">    
+        <div class="hobbies">
+            <h3>Add new Lanes:</h3>
+            <button @click="onAddHobby" type="button" class="button">Add Lane</button>
+            <br>
+            <br>
+            <div class="hobby-list">
+                <div
+                        class="input"
+                        v-for="(hobbyInput, index) in hobbyInputs"
+                        :key="hobbyInput.id">
+                <label :for="hobbyInput.id">Lane No.: {{ index + 1 }}</label>
+                <input
+                        type="text"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.mpNumber"
+                        placeholder="Multiplex No.">
+                <label :for="hobbyInput.laneMolarity">Lane Molarity:</label>
+                <input
+                        type="number"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.laneMolarity">pM
+                <label :for="hobbyInput.phiXPercentage">PhiX:</label>
+                <input
+                        type="number"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.phiXPercentage">%
+                <button @click="onDeleteHobby(hobbyInput.id)" type="button">X</button>
+                </div>
+            </div>
+        </div>
+    <div id="instruction" >
+        <h3>Instruction:</h3>
+    <pre class="instruction">
+1. Check, if instrument is idle. If run just finieshed power-cycle the instrument,
+   perform maintanance wash using MWS. Delete old files from HiSeq Temp folder on drives C and D. 
+   Leave just 3 latest runs. Afterwards perform water wash.
+   Wash cBot as well. (Follow instructions on the screen)
+2. Prepare Cluster Sheet and all reagents.
+3. Denature each sample:
+    - Transfer <b>19µl</b> of the <b>2,5nM</b> library into PCR tube;
+    - Add <b>1µl</b> of <b>2N</b> NaOH;
+    - Incubate for 5 minutes;
+    - Transfer denatured sample into Eppendorf tube containing <b>980µl</b> of Hyb Buffer;
+    - Denatured sample can be stored in -20C for 4-6 weeks;
+4. Prepare final dilutions:
+<div v-for="lane in hobbyInputs" :key="lane.id">
+    Multiplex: {{ lane.mpNumber }}
+    - <b>{{ calculateBufferVolume(lane) }}µl</b> of Hyb buffer to PCR tube;
+    - <b>{{ calculateLibraryVolume(lane) }}µl</b> of denatured sample;
+    - <b>{{ calculatePhiXVolume(lane) }}µl</b> of <b>{{ phiXStockConcentration }}pM</b> PhiX;
+    </div>
+5. Load the Flowcell and all consumables in cBot (Clustering takes 2-2,5h).
+6. 10-15 minutes before clustering is finished prime HiSeq with reagents.
+7. Lead clustered Flowcell in the HiSeq.
+8. After finished run power-cycle and wash the instrument,
+    delete old files.
+<div v-if="custom===true">
+*Custom Primers:
+
+1. If custom primers are required to be mixed with standard primers, 
+    add <b>3µl</b> of custom primers to 2nd row in cBot cluster plate in apropriate well.
+2. If primers replacement is necessary, prepare PCR tube stripe with <b>150ul</b> of <b>0.5uM</b> custom primer mix. 
+2. If not all of the lanes require custom primers, original primers can be used. 
+3. Transfer <b>150ul</b> form cBot cluster plate row 2 to PCR tube strip. 
+4. Choose protocol on the cBot accordingly. 
+</div>
+<div v-if="MWS===true">
+** Maintenance Wash Solution (MWS):
+- <b>10ml</b> of Tween 20;
+- <b>0,6ml</b> of Proclin 300;
+- fill up to <b>2000ml</b>;
+- stir well;
+- Follow instructions on the screen to start the wash.
+</div>
+</pre>
+    </div>
+    <button class="button" @click="printInstruction">Print Instruction</button>
+    <button class="button" @click="custom=!custom">Custom Primers</button>
+    <button class="button" @click="MWS=!MWS">Maintenance Wash</button>
+</div>`
+      });
+
+    Vue.component("app-novaseq", {
+        data() {
+            return {
+                multiplexConcentration: 2.5,
+                laneMolarity: 250,
+                phiXPercentage: 1,
+                phiXStockConcentration: 1,
+                flowcell: 'S1',
+                custom: false,
+                MWS: false,
+                flowcells: {
+                    S1: {
+                        volume: 100
+                    },
+                    S2: {
+                        volume: 150
+                    },
+                    S4: {
+                        volume: 310
+                    }
+                }
+            }
+        },
+        methods: {
+            printInstruction() {
+                let divContent = document.getElementById('instruction').innerHTML;
+                let toPrint = window.open('', '', 'height=500, width=500');
+                toPrint.document.write(divContent);
+                toPrint.document.close();
+                toPrint.print();
+            }
+        },
+        computed: {
+            calculatePhiXMolarity() {            
+            return (this.laneMolarity / 100 * this.phiXPercentage).toFixed(2);
+            },
+            calculateLibraryMolarity() {            
+                return (this.laneMolarity - this.calculatePhiXMolarity).toFixed(2);
+            },
+            calculateLibraryVolume() {    
+                return (this.flowcells[this.flowcell].volume / (this.multiplexConcentration / (this.calculateLibraryMolarity / 200))).toFixed(2);
+            },
+            calculatePhiXVolume() {
+                    return (this.flowcells[this.flowcell].volume / (this.phiXStockConcentration / (this.phiXPercentage / 200) / (this.laneMolarity / 100))).toFixed(2);
+            },
+            calculateBufferVolume() {
+                    return (this.flowcells[this.flowcell].volume - this.calculatePhiXVolume - this.calculateLibraryVolume).toFixed(2);
+            },
+            calculateNaOHVolume() {
+                return this.flowcells[this.flowcell].volume / 4 + 'µl';
+            },
+            calculateTrisVolume() {
+                return this.flowcells[this.flowcell].volume / 4 + 'µl';
+            }
+        },
+        template: `<div class="box">
+        <div class="formBox">
+            <label for="Flowcell">Choose the Flowcell type:</label>
+            <label for="Flowcell"><input type="radio" value="S1" v-model="flowcell">SP/S1</label>
+            <label for="Flowcell"><input type="radio" value="S2" v-model="flowcell">S2</label>
+            <label for="Flowcell"><input type="radio" value="S4" v-model="flowcell">S4</label><br>
+            <hr>
+            <label for="laneMolarity">Concentration of the multiplex:</label>
+                <input type="number" v-model="multiplexConcentration">nM<br>
+                <hr>
+            <label for="LoadingVolume">Loading Volume:</label>
+                <input type="number" disabled="disabled" v-model="flowcells[this.flowcell].volume">µl<br>
+                <hr>
+            <label for="laneMolarity">Enter lane molarity:</label>
+                <input type="number" v-model="laneMolarity">pM<br>
+                <hr>
+            <label for="phiXPercentage">Enter PhiX percentage of the lane:</label>
+                <input type="number" v-model="phiXPercentage">%<br>
+                <hr>
+            <label for="phiXPercentage">Enter PhiX Stock molarity (<strong>non-denatured</strong>):</label>
+                <label for="phiXPercentage"><input type="radio" value="1" v-model="phiXStockConcentration">1nM</label>
+                <label for="phiXPercentage"><input type="radio" value="0.1" v-model="phiXStockConcentration">0.1nM</label>
+                <hr>
+        </div>
+        <div id="instruction">
+        <h3>Instruction:</h3>
+        <pre class="instruction">
+1. Check, if instrument is idle. If run just finished - press 'Home' button and prepare new run.
+2. Plan ahead every run, reagents can be thawn over night in cold room or in water for 2-4h.
+    After thawing in cold room it is important to check if everything was thawn.
+3. Prepare Cluster Sheet, Sample and all reagents.
+4. Take out the flowcell from the fridge to equilibrate it to room temperature (5-10min).
+5. Denature the sample:
+    - Transfer <b>{{ calculateBufferVolume }}µl</b> of buffer into Eppendorf tube;
+    - Add <b>{{ calculateLibraryVolume }}µl</b> of <b>{{ multiplexConcentration }}nM</b> library;
+    - Add <b>{{ calculatePhiXVolume }}µl</b> of <b>{{ phiXStockConcentration }}nM</b> PhiX;
+    - Add <b>{{ calculateNaOHVolume }}</b> of <b>0,2N</b> NaOH;
+    - Incubate for 8 minutes;
+    - Neutralize by adding <b>{{ calculateTrisVolume }}</b> of <b>400mM</b> Tris;
+6. Load the final mix in the tube and put in the well labeled sample.
+7. Follow the screen instructions and load all consumables in instrument.
+8. If neccessary delete old files using software manager.
+9. To perform maintanance wash use wash cartridges and wash Flowcell.
+    Follow instructions on the screen to start wash.
+  <div v-if="custom===true">  
+* Custom Primers:
+
+    for more details visit <a href="https://emea.support.illumina.com/content/dam/illumina-support/documents/documentation/system_documentation/novaseq/novaseq-custom-primers-guide-1000000022266-03.pdf" target="_blank">Click here for more info!</a>
+</div>
+<div v-if="MWS===true">
+** Maintenance Wash:
+
+Prepare Wash Solution:
+1. Add <b>400</b> ml laboratory-grade water to a 500 ml centrifuge bottle.
+2. Add <b>0.2</b> ml 100% Tween 20 to result in at least 400 ml 0.05% Tween 20 wash solution.
+3. Invert to mix.
+4. Remove the lid from the center well of the SBS wash cartridge.
+5. Add wash solution to the center well. Fill to the fill line, which indicates the minimum required volume.
+The other reservoirs remain empty!!!
+
+Combine the following volumes to prepare 20 ml of 0.25% reagent grade NaOCl:
+1. <b>1 ml</b> of 5% reagent grade NaOCl.
+2. <b>19 ml</b> Deionized water.
+3. Invert to mix.
+4. Add <b>5 ml</b> 0.25% reagent grade NaOCl to the cluster wash cartridge.
+5. The location is marked Fill and has an orange circle around it. All other reservoirs remain empty!!!
+</div>
+</pre>
+    </div>
+    <button class="button" @click="printInstruction">Print Instruction</button>
+    <button class="button" @click="custom=!custom">Custom Primers</button>
+    <button class="button" @click="MWS=!MWS">Maintenance Wash</button>
+    </div>`
+      });
+
+    Vue.component("app-novaseqxp", {
+        data() {
+            return {
+                hobbyInputs: [],
+                multiplexConcentration: 2.5,
+                laneMolarity: 150,
+                phiXPercentage: 1,
+                phiXStockConcentration: 0.1,
+                flowcell: 'S1',
+                custom: false,
+                flowcells: {
+                    S1: {
+                        volume: 18,
+                        Dpx1: 84,
+                        Dpx2: 12,
+                        Dpx3: 44,
+                        ExAmp: 63,
+                        finalMix: 80
+                    },
+                    S2: {
+                        volume: 22,
+                        Dpx1: 108,
+                        Dpx2: 15.5,
+                        Dpx3: 56.6,
+                        ExAmp: 77,
+                        finalMix: 95
+                    },
+                    S4: {
+                        volume: 30,
+                        Dpx1: 315,
+                        Dpx2: 45,
+                        Dpx3: 165,
+                        ExAmp: 105,
+                        finalMix: 130
+                    }
+                }
+            }
+        },
+        methods: {
+            printInstruction() {
+                let divContent = document.getElementById('instruction').innerHTML;
+                let toPrint = window.open('', '', 'height=500, width=500');
+                toPrint.document.write(divContent);
+                toPrint.document.close();
+                toPrint.print();
+            },
+            onAddHobby () {
+                const newHobby = {
+                    id: Math.random() * Math.random() * 1000,
+                    laneMolarity: 150,
+                    phiXPercentage: 1,
+                    multiplexConcentration: 2.5,
+                    mpNumber: ''
+                }
+                this.hobbyInputs.push(newHobby)
+            },
+            onDeleteHobby (id) {
+                this.hobbyInputs = this.hobbyInputs.filter(hobby => hobby.id !== id)
+            },
+            calculatePhiXMolarity(item) {            
+            return (item.laneMolarity / 100 * item.phiXPercentage).toFixed(2);
+            },
+            calculateLibraryMolarity(item) {            
+                return (item.laneMolarity - this.calculatePhiXMolarity(item)).toFixed(2);
+            },
+            calculateLibraryVolume(item) {    
+                return (this.flowcells[this.flowcell].volume / (item.multiplexConcentration / (this.calculateLibraryMolarity(item) / 200))).toFixed(2);
+            },
+            calculatePhiXVolume(item) {
+                    return (this.flowcells[this.flowcell].volume / (this.phiXStockConcentration / (item.phiXPercentage / 200) / (item.laneMolarity / 100))).toFixed(2);
+            },
+            calculateBufferVolume(item) {
+                    return (this.flowcells[this.flowcell].volume - this.calculatePhiXVolume(item) - this.calculateLibraryVolume(item)).toFixed(2);
+            },
+            calculateNaOHVolume() {
+                return (this.flowcells[this.flowcell].volume / 4 - 0.5)+ 'µl';
+            },
+            calculateTrisVolume() {
+                return (this.flowcells[this.flowcell].volume / 4 + 0.5) + 'µl';
+            }
+        },
+        template: `<div class="box">
+        <div class="formBox">
+            <label for="Flowcell">Choose the Flowcell type:</label>
+            <label for="Flowcell"><input type="radio" value="S1" v-model="flowcell">SP/S1</label>
+            <label for="Flowcell"><input type="radio" value="S2" v-model="flowcell">S2</label>
+            <label for="Flowcell"><input type="radio" value="S4" v-model="flowcell">S4</label><br>
+            <hr>
+            <div class="hobbies">
+            <h3>Add new Lanes:</h3>
+            <button @click="onAddHobby" type="button" class="button">Add Lane</button>
+            <br>
+            <br>
+            <div class="hobby-list">
+                <div
+                        class="input"
+                        v-for="(hobbyInput, index) in hobbyInputs"
+                        :key="hobbyInput.id">
+                <label :for="hobbyInput.id">Lane No.: {{ index + 1 }}</label>
+                <input
+                        type="text"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.mpNumber"
+                        placeholder="Multiplex No. ">
+                <label :for="hobbyInput.laneMolarity">MP:</label>
+                <input
+                        type="number"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.multiplexConcentration">nM
+                <label :for="hobbyInput.laneMolarity">Lane Molarity:</label>
+                <input
+                        type="number"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.laneMolarity">pM
+                <label :for="hobbyInput.phiXPercentage">PhiX:</label>
+                <input
+                        type="number"
+                        :id="hobbyInput.id"
+                        v-model="hobbyInput.phiXPercentage">%
+                <button @click="onDeleteHobby(hobbyInput.id)" type="button">X</button>
+                </div>
+            </div>
+        </div>
+                <hr>
+            <label for="phiXPercentage">Enter PhiX Stock molarity (<strong>non-denatured</strong>):</label>
+                <label for="phiXPercentage"><input type="radio" value="1" v-model="phiXStockConcentration">1nM</label>
+                <label for="phiXPercentage"><input type="radio" value="0.1" v-model="phiXStockConcentration">0.1nM</label>
+                <hr>
+        </div>
+        <div id="instruction">
+        <h3>Instruction:</h3>
+        <pre class="instruction">
+1. Check, if instrument is idle. If run just finished - press 'Home' button and prepare new run.
+2. Plan ahead every run, reagents can be thawn over night in cold room or in water for 2-4h.
+    After thawing in cold room it is important to check if everything was thawn.
+3. Prepare Cluster Sheet, Sample and all reagents.
+4. Take out the flowcell from the fridge to equilibrate it to room temperature (5-10min).
+5. Denature samples in Eppendorf tubes:
+<div v-for="lane in hobbyInputs" :key="lane.id">
+    Multiplex: {{ lane.mpNumber }}
+    - <b>{{ calculateBufferVolume(lane) }}µl</b> of buffer;
+    - <b>{{ calculateLibraryVolume(lane) }}µl</b> of <b>{{ lane.multiplexConcentration }}nM</b> library;
+    - <b>{{ calculatePhiXVolume(lane) }}µl</b> of <b>{{ phiXStockConcentration }}nM</b> PhiX;
+</div>
+    - Add <b>{{ calculateNaOHVolume() }}</b> of <b>0,2N</b>  NaOHto each sample;
+    - Incubate for 8 minutes (Take out DPX set from the freezer to thaw, up to 10 minutes);
+    - During incubation install flowcell and gasket in the holder;
+    - Neutralize by adding <b>{{ calculateTrisVolume() }}</b> of <b>400mM</b> Tris;
+		
+6.Put denatured samples on ice and prepare ExAmp mix:
+    - <b>{{ flowcells[this.flowcell].Dpx1 }}µl</b> of DPX1;
+    - <b>{{ flowcells[this.flowcell].Dpx2 }}µl</b> of DPX2;
+    - <b>{{ flowcells[this.flowcell].Dpx3 }}µl</b> of DPX3;
+    - Vortex and spin down;
+		
+7. Transfer <b>{{ flowcells[this.flowcell].ExAmp }}µl</b> of mix to each sample;
+8. Vortex and spin down;
+9. Load <b>{{ flowcells[this.flowcell].finalMix }}µl</b> of final mix in each well;
+10. Start sequencing within 30 minutes, follow instructions on the screen.
+<div v-if="custom===true">
+* Custom Primers:
+
+    for more details visit <a href="https://emea.support.illumina.com/content/dam/illumina-support/documents/documentation/system_documentation/novaseq/novaseq-custom-primers-guide-1000000022266-03.pdf" target="_blank">Click here for more info!</a>
+			</div>
+</pre>
+</div>
+<button class="button" @click="printInstruction">Print Instruction</button>
+<button class="button" @click="custom=!custom">Custom Primers</button>
+    </div>`
+      });
+
+    new Vue ({
+    el: '#app',
+    data: {
+        sequencers: ['iSeq', 'MiSeq', 'NextSeq', 'NextSeq2000', 'HiSeq', 'NovaSeq', 'NovaSeqXp'],
+        currentSequencer: null
+    },
+    computed: {       
+        currentSequencerComponent: function() {
+            return "app-" + this.currentSequencer.toLowerCase();
+        },
+    }    
+})
+
+</script>
+
+
+</html>
